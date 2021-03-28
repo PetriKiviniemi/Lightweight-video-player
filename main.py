@@ -53,7 +53,7 @@ class Application(tk.Frame):
         self.songChanged = False                #Flag for seeing if user pressed next button
         self.playback_buttons_frame = None      #Bind the playback buttons frame for swapping buttons inside of it
         self.isPlaying = False                  #Flag used seeing if video is being streamed (Used in next/prev song, not in thread termination!)
-        self.curVolume = 100
+        self.curVolume = 50
         self.curBassBoost = 0                   #Maybe used one day
         self.now_playing = ""
 
@@ -160,7 +160,7 @@ class Application(tk.Frame):
         volume_slider = Scale(eq_frame, from_=0, to=100, orient=tk.HORIZONTAL,
                             bg=self.mainBgColor, bd=0,fg="white", 
                             troughcolor=self.labelBgColor, highlightbackground=self.mainBgColor, 
-                            activebackground="#FF00FF", command=self.VolumeSlider)
+                            activebackground="#FF00FF", command=self.VolumeSlider, length=150)
 
         volume_slider.grid(row=1, column=0,padx=(30,0))
         volume_slider.set(self.curVolume)
@@ -191,7 +191,7 @@ class Application(tk.Frame):
 
         #Video queue frame
         queue_frame = LabelFrame(video_player_frame, bg=self.labelBgColor, bd=0)
-        queue_frame.grid_rowconfigure(0, weight=1)
+        queue_frame.grid_rowconfigure(0, weight=0)
         queue_frame.grid_columnconfigure(0, weight=1)
         queue_frame.grid(row=0, column=1)
 
@@ -213,6 +213,10 @@ class Application(tk.Frame):
         scrollbar = Scrollbar(queue_frame, orient="vertical", command=self.video_list.yview, bg=self.labelBgColor, highlightcolor=self.btnHighlight, bd=0)
         self.video_list.config(yscrollcommand=scrollbar.set)
         scrollbar.grid(row=1, column=1, sticky='ns')
+
+        #Search bar for videos
+        # search_bar = tk.Entry(queue_frame, bd=0, )
+        # search_bar.grid(row=2,column=0)
 
     def listbox_sel_callback(self, event):
         self.playlist = []
@@ -240,9 +244,8 @@ class Application(tk.Frame):
         self.playlistChanged = False
 
         # if self.selected_video >= 0 and self.selected_video < len(self.playlist):
-        self.video_player = MediaPlayer(self.video_folder.get() + "\\" + self.playlist[self.selected_video])
-        self.video_player.set_size(400, 200)
-
+        self.start_videostream()
+        self.video_player.set_volume(float(self.curVolume)/100)
         thread = threading.Thread(target=self.Video_data_stream)
         thread.daemon = 1
         thread.start()
@@ -272,7 +275,6 @@ class Application(tk.Frame):
         self.playButton.grid(row=0, column=1)
         self.changeNowPlaying()
 
-    
     def PauseVideo(self):
         global pause_thread
         if pause_thread:
@@ -285,6 +287,13 @@ class Application(tk.Frame):
             pause_thread = True
             self.video_player.set_pause(True)
 
+    def start_videostream(self):
+        #Start new instance of player
+        if self.video_player:
+            self.video_player.close_player()
+        self.video_player = MediaPlayer(self.video_folder.get() + "\\" + self.playlist[self.selected_video], volume=float(self.curVolume)/100)
+        self.video_player.set_size(400, 200)
+        time.sleep(0.2)
 
     def NextVideo(self):
         if self.isPlaying == False:
@@ -305,9 +314,8 @@ class Application(tk.Frame):
         else:
             self.selected_video = 0
 
-        #Start new instance of player
-        self.video_player = MediaPlayer(self.video_folder.get() + "\\" + self.playlist[self.selected_video])
-        self.video_player.set_size(400, 200)    
+        self.start_videostream()
+        self.video_player.set_volume(float(self.curVolume)/100)
         self.changeNowPlaying()
     
     def PreviousVideo(self):
@@ -327,9 +335,7 @@ class Application(tk.Frame):
         else:
             self.selected_video = len(self.playlist)-1
 
-        #Start new instance of player
-        self.video_player = MediaPlayer(self.video_folder.get() + "\\" + self.playlist[self.selected_video])
-        self.video_player.set_size(400, 200)    
+        self.start_videostream() 
         self.changeNowPlaying()
 
     def SelectAll(self):
@@ -346,6 +352,7 @@ class Application(tk.Frame):
     def VolumeSlider(self, value):
         if self.video_player:
             self.video_player.set_volume(float(value)/100)
+        self.curVolume = value
 
     def Video_data_stream(self):
         global stop_thread
@@ -360,12 +367,13 @@ class Application(tk.Frame):
                     
                 frame, val = self.video_player.get_frame()
                 if val == 'eof':
+                    self.video_player.close_player()
                     self.NextVideo()        #Increment the video index
+                    self.video_player.set_volume(float(self.curVolume)/100)
                     #If we still have videos left in playlist, play another one
-                    if self.selected_video < len(self.playlist):
-                        self.video_player = MediaPlayer(self.video_folder.get() + "\\" + self.playlist[self.selected_video])
-                        self.video_player.set_size(400, 200)
-
+                    # if self.selected_video < len(self.playlist):
+                    #     self.video_player = MediaPlayer(self.video_folder.get() + "\\" + self.playlist[self.selected_video])
+                    #     self.video_player.set_size(400, 200)
                 elif frame is None:
                     time.sleep(0.01)
                 else:
@@ -423,7 +431,8 @@ class Application(tk.Frame):
                 video_stream_buffer.download(folder)
                 self.downloadLeft[0] += 1
             except:
-                self.downloadLeft[1] -= 1
+                if self.downloadLeft[1] > 0:
+                    self.downloadLeft[1] -= 1
                 continue
         self.Update_Download_Status()
         messagebox.showinfo("Download complete!","Downloaded videos from playlist to:\n" + folder)
@@ -455,5 +464,3 @@ pause_thread = False
 root = tk.Tk()
 app = Application(master=root)
 app.mainloop()
-
-
