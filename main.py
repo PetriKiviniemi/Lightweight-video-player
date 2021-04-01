@@ -63,7 +63,7 @@ class Application(tk.Frame):
 
     def create_widgets(self):
         self.master.config(bg=self.mainBgColor)
-
+        
         ##DOWNLOADING
         download_frame = LabelFrame(self.master, bg=self.mainBgColor, width=20)
         download_frame.grid(row=0, column=0, pady=10)
@@ -214,6 +214,7 @@ class Application(tk.Frame):
         self.video_list.config(yscrollcommand=scrollbar.set)
         scrollbar.grid(row=1, column=1, sticky='ns')
 
+        self.curVolume = 50
         #Search bar for videos
         # search_bar = tk.Entry(queue_frame, bd=0, )
         # search_bar.grid(row=2,column=0)
@@ -245,7 +246,7 @@ class Application(tk.Frame):
 
         # if self.selected_video >= 0 and self.selected_video < len(self.playlist):
         self.start_videostream()
-        self.video_player.set_volume(float(self.curVolume)/100)
+        #self.video_player.set_volume(float(self.curVolume)/100)
         thread = threading.Thread(target=self.Video_data_stream)
         thread.daemon = 1
         thread.start()
@@ -291,9 +292,17 @@ class Application(tk.Frame):
         #Start new instance of player
         if self.video_player:
             self.video_player.close_player()
-        self.video_player = MediaPlayer(self.video_folder.get() + "\\" + self.playlist[self.selected_video], volume=float(self.curVolume)/100)
+        cVol = float(self.curVolume)/100
+        print(cVol)
+        self.video_player = MediaPlayer(self.video_folder.get() + "\\" + self.playlist[self.selected_video], ff_opts={'paused': True,'volume':0.03})
         self.video_player.set_size(400, 200)
-        time.sleep(0.2)
+        #while not self.video_player:
+        #    continue
+        time.sleep(0.1)
+        if self.video_player:
+            self.video_player.set_volume(cVol)
+        self.video_player.set_pause(False)
+
 
     def NextVideo(self):
         if self.isPlaying == False:
@@ -315,7 +324,7 @@ class Application(tk.Frame):
             self.selected_video = 0
 
         self.start_videostream()
-        self.video_player.set_volume(float(self.curVolume)/100)
+        #self.video_player.set_volume(float(self.curVolume)/100)
         self.changeNowPlaying()
     
     def PreviousVideo(self):
